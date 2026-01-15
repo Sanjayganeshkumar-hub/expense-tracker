@@ -1,5 +1,7 @@
 // ---------- SIGN UP ----------
 const signupForm = document.getElementById('signupForm');
+const loginForm = document.getElementById('loginForm');
+
 
 if (signupForm) {
   signupForm.addEventListener('submit', async (e) => {
