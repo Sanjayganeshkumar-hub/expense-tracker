@@ -1,37 +1,19 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const session = require("express-session");
-const MongoStore = require("connect-mongo");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const path = require("path");
 
 const app = express();
-
-/* ================= MIDDLEWARE ================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-/* ================= DATABASE ================= */
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("Connected to MongoDB Atlas"))
-  .catch(console.error);
-
-/* ================= SESSION ================= */
-app.use(
-  session({
-    name: "expense-tracker-session",
-    secret: process.env.SESSION_SECRET || "expense_secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 },
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI,
-      collectionName: "sessions"
-    })
-  })
-);
+/* ================= DB ================= */
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log("Connected to MongoDB Atlas"))
+  .catch(err => console.error(err));
 
 /* ================= MODELS ================= */
 const UserSchema = new mongoose.Schema({
@@ -39,6 +21,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String
 });
+const User = mongoose.model("User", UserSchema);
 
 const TransactionSchema = new mongoose.Schema({
   userId: mongoose.Schema.Types.ObjectId,
@@ -48,56 +31,68 @@ const TransactionSchema = new mongoose.Schema({
   description: String,
   date: { type: Date, default: Date.now }
 });
-
-const User = mongoose.model("User", UserSchema);
 const Transaction = mongoose.model("Transaction", TransactionSchema);
 
 /* ================= ROUTES ================= */
-app.get("/", (_, res) =>
-  res.sendFile(path.join(__dirname, "public", "login.html"))
-);
 
+// Home → Login
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/login.html"));
+});
+
+// Signup page
+app.get("/signup", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/signup.html"));
+});
+
+// Dashboard
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/dashboard.html"));
+});
+
+/* ---------- SIGN UP ---------- */
 app.post("/signup", async (req, res) => {
   try {
-    const hashed = await bcrypt.hash(req.body.password, 10);
-    await User.create({ ...req.body, password: hashed });
+    const { name, email, password } = req.body;
+
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    await User.create({ name, email, password: hashed });
+
     res.json({ success: true });
-  } catch {
-    res.status(400).json({ error: "User exists" });
+  } catch (err) {
+    res.status(500).json({ message: "Signup failed" });
   }
 });
 
+/* ---------- LOGIN ---------- */
 app.post("/login", async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
-  if (!user) return res.sendStatus(401);
+  const { email, password } = req.body;
 
-  const ok = await bcrypt.compare(req.body.password, user.password);
-  if (!ok) return res.sendStatus(401);
+  const user = await User.findOne({ email });
+  if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-  req.session.userId = user._id;
-  res.json({ success: true });
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+
+  res.json({ success: true, userId: user._id });
 });
 
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => res.redirect("/"));
-});
-
+/* ---------- TRANSACTIONS ---------- */
 app.post("/transaction", async (req, res) => {
-  if (!req.session.userId) return res.sendStatus(401);
-
-  await Transaction.create({
-    ...req.body,
-    userId: req.session.userId
-  });
-
+  await Transaction.create(req.body);
   res.json({ success: true });
 });
 
-app.get("/transactions", async (req, res) => {
-  if (!req.session.userId) return res.sendStatus(401);
-  res.json(await Transaction.find({ userId: req.session.userId }));
+app.get("/transactions/:userId", async (req, res) => {
+  const txns = await Transaction.find({ userId: req.params.userId });
+  res.json(txns);
 });
 
 /* ================= SERVER ================= */
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on", PORT));
+app.listen(PORT, () => console.log("Server running on port", PORT));
