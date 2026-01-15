@@ -1,83 +1,153 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Expense Tracker</title>
+
   <style>
-    body { font-family: Arial; background:#6b6bd6; padding:20px }
-    input, select, button { padding:8px; margin:5px }
-    .box { background:#fff; padding:20px; margin:10px 0 }
+    body {
+      font-family: Arial, sans-serif;
+      background: #6f72d9;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      width: 90%;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    .summary p {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    form input, form select, form button {
+      margin: 5px;
+      padding: 8px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
 
-<h1>Expense Tracker</h1>
-<button onclick="logout()">Logout</button>
+  <div class="container">
+    <h1>Expense Tracker</h1>
 
-<div class="box">
-  <h3>Total Income: ₹<span id="income">0</span></h3>
-  <h3>Total Expense: ₹<span id="expense">0</span></h3>
-  <h3>Balance: ₹<span id="balance">0</span></h3>
-</div>
+    <button onclick="logout()">Logout</button>
 
-<div class="box">
-  <h3>Add Transaction</h3>
-  <select id="type">
-    <option value="income">Income</option>
-    <option value="expense">Expense</option>
-  </select>
-  <input id="amount" type="number" placeholder="Amount">
-  <input id="category" placeholder="Category">
-  <input id="description" placeholder="Description">
-  <button onclick="addTransaction()">Add</button>
-</div>
+    <div class="summary">
+      <p>Total Income: ₹<span id="income">0</span></p>
+      <p>Total Expense: ₹<span id="expense">0</span></p>
+      <p>Balance: ₹<span id="balance">0</span></p>
+    </div>
+  </div>
 
-<div class="box">
-  <h3>Recent Transactions</h3>
-  <ul id="list"></ul>
-</div>
+  <div class="container">
+    <h2>Add Transaction</h2>
 
-<script>
-async function loadData() {
-  const res = await fetch("/transactions");
-  const data = await res.json();
+    <!-- IMPORTANT: id="transactionForm" -->
+    <form id="transactionForm">
+      <select id="type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
 
-  let income = 0, expense = 0;
-  document.getElementById("list").innerHTML = "";
+      <input type="number" id="amount" placeholder="Amount" required />
+      <input type="text" id="category" placeholder="Category" required />
+      <input type="text" id="description" placeholder="Description" />
 
-  data.forEach(t => {
-    if (t.type === "income") income += t.amount;
-    else expense += t.amount;
+      <button type="submit">Add</button>
+    </form>
+  </div>
 
-    document.getElementById("list").innerHTML +=
-      `<li>${t.type} - ₹${t.amount} (${t.category})</li>`;
-  });
+  <div class="container">
+    <h2>Recent Transactions</h2>
+    <ul id="transactions"></ul>
+  </div>
 
-  document.getElementById("income").innerText = income;
-  document.getElementById("expense").innerText = expense;
-  document.getElementById("balance").innerText = income - expense;
-}
+  <script>
+    // LOAD TRANSACTIONS ON PAGE LOAD
+    async function loadTransactions() {
+      const res = await fetch("/transactions");
+      if (!res.ok) {
+        alert("Session expired. Please login again.");
+        window.location.href = "/login.html";
+        return;
+      }
 
-async function addTransaction() {
-  await fetch("/transaction", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      type: type.value,
-      amount: Number(amount.value),
-      category: category.value,
-      description: description.value
-    })
-  });
-  loadData();
-}
+      const data = await res.json();
 
-async function logout() {
-  await fetch("/logout", { method: "POST" });
-  location.href = "/";
-}
+      let income = 0;
+      let expense = 0;
 
-loadData();
-</script>
+      const list = document.getElementById("transactions");
+      list.innerHTML = "";
+
+      data.forEach(t => {
+        if (t.type === "income") income += t.amount;
+        else expense += t.amount;
+
+        const li = document.createElement("li");
+        li.textContent = `${t.type} - ₹${t.amount} (${t.category})`;
+        list.appendChild(li);
+      });
+
+      document.getElementById("income").textContent = income;
+      document.getElementById("expense").textContent = expense;
+      document.getElementById("balance").textContent = income - expense;
+    }
+
+    // ADD TRANSACTION (🔥 NO PAGE RELOAD 🔥)
+    document.getElementById("transactionForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); // 🔥 THIS IS THE FIX
+
+      const type = document.getElementById("type").value;
+      const amount = document.getElementById("amount").value;
+      const category = document.getElementById("category").value;
+      const description = document.getElementById("description").value;
+
+      const res = await fetch("/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          amount,
+          category,
+          description
+        })
+      });
+
+      if (res.ok) {
+        document.getElementById("transactionForm").reset();
+        loadTransactions(); // refresh UI
+      } else {
+        alert("Failed to add transaction");
+      }
+    });
+
+    async function logout() {
+      await fetch("/logout");
+      window.location.href = "/login.html";
+    }
+
+    loadTransactions();
+  </script>
 
 </body>
 </html>
