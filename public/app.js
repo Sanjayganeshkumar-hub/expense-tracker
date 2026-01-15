@@ -1,78 +1,54 @@
-document.addEventListener("DOMContentLoaded", () => {
+const userId = localStorage.getItem("userId");
 
-  const token = localStorage.getItem("token");
+if (!userId) {
+  alert("Please login first");
+  window.location.href = "/";
+}
 
-  /* ===== PROTECT DASHBOARD ===== */
-  if (window.location.pathname.includes("dashboard") && !token) {
-    window.location.href = "/login.html";
-    return;
-  }
+const list = document.getElementById("list");
+const summary = document.getElementById("summary");
 
-  /* ===== LOGOUT ===== */
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      localStorage.removeItem("token");
-      window.location.href = "/login.html";
-    };
-  }
+async function load() {
+  const res = await fetch(`/transactions/${userId}`);
+  const txns = await res.json();
 
-  /* ===== ADD TRANSACTION ===== */
-  const form = document.getElementById("transactionForm");
-  if (form) {
-    loadTransactions();
+  let income = 0, expense = 0;
+  list.innerHTML = "";
 
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
+  txns.forEach(t => {
+    if (t.type === "income") income += t.amount;
+    else expense += t.amount;
 
-      const data = {
-        type: type.value,
-        amount: amount.value,
-        category: category.value,
-        description: description.value
-      };
+    const li = document.createElement("li");
+    li.textContent = `${t.type} - ₹${t.amount} (${t.category})`;
+    list.appendChild(li);
+  });
 
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-      });
+  summary.textContent = `Income: ₹${income} | Expense: ₹${expense} | Balance: ₹${income - expense}`;
+}
 
-      if (res.ok) {
-        form.reset();
-        loadTransactions();
-      } else {
-        alert("Transaction failed");
-      }
-    });
-  }
+load();
 
-  /* ===== LOAD TRANSACTIONS ===== */
-  async function loadTransactions() {
-    const res = await fetch("/api/transactions", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+document.getElementById("txnForm").onsubmit = async (e) => {
+  e.preventDefault();
 
-    const txs = await res.json();
+  await fetch("/transaction", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      type: type.value,
+      amount: Number(amount.value),
+      category: category.value,
+      description: description.value
+    })
+  });
 
-    let income = 0, expense = 0;
-    transactionList.innerHTML = "";
+  e.target.reset();
+  load();
+};
 
-    txs.forEach(t => {
-      const li = document.createElement("li");
-      li.textContent = `${t.type} | ${t.category} | ₹${t.amount}`;
-      transactionList.appendChild(li);
-
-      if (t.type === "income") income += t.amount;
-      else expense += t.amount;
-    });
-
-    incomeEl.textContent = `₹${income}`;
-    expenseEl.textContent = `₹${expense}`;
-    balanceEl.textContent = `₹${income - expense}`;
-  }
-
-});
+document.getElementById("logout").onclick = () => {
+  localStorage.removeItem("userId");
+  window.location.href = "/";
+};
