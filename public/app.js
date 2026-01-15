@@ -1,79 +1,93 @@
 document.addEventListener("DOMContentLoaded", () => {
 
   /* =========================
-     SIGN UP
+     LOGOUT
   ========================== */
-  const signupForm = document.getElementById("signupForm");
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("token");
+      window.location.href = "/login.html";
+    });
+  }
 
-  if (signupForm) {
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault(); // 🔴 VERY IMPORTANT (stops page reload)
+  /* =========================
+     ADD TRANSACTION
+  ========================== */
+  const transactionForm = document.getElementById("transactionForm");
 
-      const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
+  if (transactionForm) {
+    loadTransactions();
+
+    transactionForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const type = document.getElementById("type").value;
+      const amount = document.getElementById("amount").value;
+      const category = document.getElementById("category").value;
+      const description = document.getElementById("description").value;
 
       try {
-        const res = await fetch("/api/signup", {
+        const res = await fetch("/api/transactions", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
           },
-          body: JSON.stringify({ name, email, password })
+          body: JSON.stringify({ type, amount, category, description })
         });
 
-        const data = await res.json();
-
         if (res.ok) {
-          alert("Account created successfully!");
-          window.location.href = "/login.html";
+          transactionForm.reset();
+          loadTransactions();
         } else {
-          alert(data.message || "Error creating account. Please try again.");
+          alert("Failed to add transaction");
         }
 
       } catch (err) {
         console.error(err);
-        alert("Server error. Please try again.");
+        alert("Server error");
       }
     });
   }
 
-
   /* =========================
-     LOGIN
+     LOAD TRANSACTIONS
   ========================== */
-  const loginForm = document.getElementById("loginForm");
-
-  if (loginForm) {
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault(); // 🔴 VERY IMPORTANT
-
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
-
-      try {
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email, password })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          alert("Login successful!");
-          window.location.href = "/dashboard.html";
-        } else {
-          alert(data.message || "Invalid credentials");
+  async function loadTransactions() {
+    try {
+      const res = await fetch("/api/transactions", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
         }
+      });
 
-      } catch (err) {
-        console.error(err);
-        alert("Server error. Please try again.");
-      }
-    });
+      const data = await res.json();
+
+      const list = document.getElementById("transactionList");
+      const incomeEl = document.getElementById("income");
+      const expenseEl = document.getElementById("expense");
+      const balanceEl = document.getElementById("balance");
+
+      list.innerHTML = "";
+      let income = 0, expense = 0;
+
+      data.forEach(tx => {
+        const li = document.createElement("li");
+        li.textContent = `${tx.category} - ₹${tx.amount}`;
+        list.appendChild(li);
+
+        if (tx.type === "income") income += tx.amount;
+        else expense += tx.amount;
+      });
+
+      incomeEl.textContent = `₹${income}`;
+      expenseEl.textContent = `₹${expense}`;
+      balanceEl.textContent = `₹${income - expense}`;
+
+    } catch (err) {
+      console.error(err);
+    }
   }
 
 });

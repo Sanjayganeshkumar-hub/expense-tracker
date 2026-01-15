@@ -25,84 +25,117 @@ mongoose
   .catch(err => console.error("MongoDB error:", err));
 
 /* =====================
-   USER SCHEMA
+   USER MODEL
 ===================== */
 const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  name: String,
+  email: { type: String, unique: true },
+  password: String
 });
-
 const User = mongoose.model("User", UserSchema);
+
+/* =====================
+   TRANSACTION MODEL
+===================== */
+const TransactionSchema = new mongoose.Schema({
+  userId: mongoose.Schema.Types.ObjectId,
+  type: String,
+  amount: Number,
+  category: String,
+  description: String,
+  date: { type: Date, default: Date.now }
+});
+const Transaction = mongoose.model("Transaction", TransactionSchema);
+
+/* =====================
+   AUTH MIDDLEWARE
+===================== */
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "No token" });
+
+  try {
+    const decoded = jwt.verify(token, "secretkey");
+    req.userId = decoded.id;
+    next();
+  } catch {
+    res.status(401).json({ message: "Invalid token" });
+  }
+};
 
 /* =====================
    ROUTES
 ===================== */
-
-// Default route
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "signup.html"));
 });
 
-// SIGNUP
+/* ---------- SIGNUP ---------- */
 app.post("/api/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password)
       return res.status(400).json({ message: "All fields required" });
-    }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const exists = await User.findOne({ email });
+    if (exists)
       return res.status(400).json({ message: "User already exists" });
-    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({
+    await new User({
       name,
       email,
       password: hashedPassword
-    });
+    }).save();
 
-    await newUser.save();
-
-    res.status(201).json({ message: "User created successfully" });
-
+    res.status(201).json({ message: "User created" });
   } catch (err) {
-    console.error("Signup error:", err);
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// LOGIN
+/* ---------- LOGIN ---------- */
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user)
       return res.status(400).json({ message: "Invalid credentials" });
-    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
-    }
 
-    const token = jwt.sign(
-      { id: user._id },
-      "secretkey",
-      { expiresIn: "1h" }
-    );
-
-    res.json({ message: "Login successful", token });
-
-  } catch (err) {
-    console.error("Login error:", err);
+    const token = jwt.sign({ id: user._id }, "secretkey", { expiresIn: "1h" });
+    res.json({ token });
+  } catch {
     res.status(500).json({ message: "Server error" });
   }
+});
+
+/* ---------- ADD TRANSACTION ---------- */
+app.post("/api/transactions", authMiddleware, async (req, res) => {
+  try {
+    const tx = new Transaction({
+      ...req.body,
+      amount: Number(req.body.amount),
+      userId: req.userId
+    });
+    await tx.save();
+    res.json({ message: "Transaction added" });
+  } catch {
+    res.status(500).json({ message: "Error saving transaction" });
+  }
+});
+
+/* ---------- GET TRANSACTIONS ---------- */
+app.get("/api/transactions", authMiddleware, async (req, res) => {
+  const txs = await Transaction.find({ userId: req.userId });
+  res.json(txs);
 });
 
 /* =====================
