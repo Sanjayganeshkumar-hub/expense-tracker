@@ -1,49 +1,39 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
-const MongoStore = require("connect-mongo")(session);
+const MongoStore = require("connect-mongo");
 const bcrypt = require("bcryptjs");
 const path = require("path");
 
 const app = express();
 
-/* ===============================
-   MIDDLEWARE
-================================ */
+/* ================= MIDDLEWARE ================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-/* ===============================
-   DATABASE
-================================ */
+/* ================= DATABASE ================= */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to MongoDB Atlas"))
-  .catch((err) => console.error(err));
+  .catch(console.error);
 
-/* ===============================
-   SESSION CONFIG (FIXED)
-================================ */
+/* ================= SESSION ================= */
 app.use(
   session({
     name: "expense-tracker-session",
     secret: process.env.SESSION_SECRET || "expense_secret",
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24 // 1 day
-    },
-    store: new MongoStore({
-      mongooseConnection: mongoose.connection,
-      collection: "sessions"
+    cookie: { maxAge: 1000 * 60 * 60 * 24 },
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI,
+      collectionName: "sessions"
     })
   })
 );
 
-/* ===============================
-   MODELS
-================================ */
+/* ================= MODELS ================= */
 const UserSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
@@ -62,76 +52,52 @@ const TransactionSchema = new mongoose.Schema({
 const User = mongoose.model("User", UserSchema);
 const Transaction = mongoose.model("Transaction", TransactionSchema);
 
-/* ===============================
-   ROUTES
-================================ */
+/* ================= ROUTES ================= */
+app.get("/", (_, res) =>
+  res.sendFile(path.join(__dirname, "public", "login.html"))
+);
 
-// HOME
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-
-// SIGNUP
 app.post("/signup", async (req, res) => {
   try {
     const hashed = await bcrypt.hash(req.body.password, 10);
-    await User.create({
-      name: req.body.name,
-      email: req.body.email,
-      password: hashed
-    });
+    await User.create({ ...req.body, password: hashed });
     res.json({ success: true });
-  } catch (err) {
-    res.status(400).json({ error: "User already exists" });
+  } catch {
+    res.status(400).json({ error: "User exists" });
   }
 });
 
-// LOGIN
 app.post("/login", async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
+  if (!user) return res.sendStatus(401);
 
   const ok = await bcrypt.compare(req.body.password, user.password);
-  if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+  if (!ok) return res.sendStatus(401);
 
   req.session.userId = user._id;
   res.json({ success: true });
 });
 
-// LOGOUT
 app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/");
-  });
+  req.session.destroy(() => res.redirect("/"));
 });
 
-// ADD TRANSACTION
 app.post("/transaction", async (req, res) => {
   if (!req.session.userId) return res.sendStatus(401);
 
   await Transaction.create({
-    userId: req.session.userId,
-    type: req.body.type,
-    amount: req.body.amount,
-    category: req.body.category,
-    description: req.body.description
+    ...req.body,
+    userId: req.session.userId
   });
 
   res.json({ success: true });
 });
 
-// GET TRANSACTIONS
 app.get("/transactions", async (req, res) => {
   if (!req.session.userId) return res.sendStatus(401);
-
-  const data = await Transaction.find({ userId: req.session.userId });
-  res.json(data);
+  res.json(await Transaction.find({ userId: req.session.userId }));
 });
 
-/* ===============================
-   SERVER
-================================ */
+/* ================= SERVER ================= */
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
-});
+app.listen(PORT, () => console.log("Server running on", PORT));
