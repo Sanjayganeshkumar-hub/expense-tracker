@@ -1,79 +1,78 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* =====================
-     SIGNUP
-  ====================== */
-  const signupForm = document.getElementById("signupForm");
+  const token = localStorage.getItem("token");
 
-  if (signupForm) {
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault(); // 🔥 STOPS PAGE RELOAD
+  /* ===== PROTECT DASHBOARD ===== */
+  if (window.location.pathname.includes("dashboard") && !token) {
+    window.location.href = "/login.html";
+    return;
+  }
 
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+  /* ===== LOGOUT ===== */
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      localStorage.removeItem("token");
+      window.location.href = "/login.html";
+    };
+  }
 
-      try {
-        const res = await fetch("/api/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password })
-        });
+  /* ===== ADD TRANSACTION ===== */
+  const form = document.getElementById("transactionForm");
+  if (form) {
+    loadTransactions();
 
-        const data = await res.json();
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
 
-        if (!res.ok) {
-          alert(data.message || "Signup failed");
-          return;
-        }
+      const data = {
+        type: type.value,
+        amount: amount.value,
+        category: category.value,
+        description: description.value
+      };
 
-        alert("Signup successful!");
-        window.location.href = "/login.html";
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
 
-      } catch (err) {
-        alert("Server error");
-        console.error(err);
+      if (res.ok) {
+        form.reset();
+        loadTransactions();
+      } else {
+        alert("Transaction failed");
       }
     });
   }
 
-  /* =====================
-     LOGIN
-  ====================== */
-  const loginForm = document.getElementById("loginForm");
-
-  if (loginForm) {
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault(); // 🔥 STOPS PAGE RELOAD
-
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      try {
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          alert(data.message || "Login failed");
-          return;
-        }
-
-        // ✅ SAVE TOKEN
-        localStorage.setItem("token", data.token);
-
-        alert("Login successful!");
-        window.location.href = "/dashboard.html";
-
-      } catch (err) {
-        alert("Server error");
-        console.error(err);
-      }
+  /* ===== LOAD TRANSACTIONS ===== */
+  async function loadTransactions() {
+    const res = await fetch("/api/transactions", {
+      headers: { Authorization: `Bearer ${token}` }
     });
+
+    const txs = await res.json();
+
+    let income = 0, expense = 0;
+    transactionList.innerHTML = "";
+
+    txs.forEach(t => {
+      const li = document.createElement("li");
+      li.textContent = `${t.type} | ${t.category} | ₹${t.amount}`;
+      transactionList.appendChild(li);
+
+      if (t.type === "income") income += t.amount;
+      else expense += t.amount;
+    });
+
+    incomeEl.textContent = `₹${income}`;
+    expenseEl.textContent = `₹${expense}`;
+    balanceEl.textContent = `₹${income - expense}`;
   }
 
 });

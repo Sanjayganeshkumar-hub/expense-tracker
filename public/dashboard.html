@@ -1,42 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Expense Tracker</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-  <h1>Expense Tracker</h1>
-  <button id="logoutBtn">Logout</button>
+<h1>Expense Tracker</h1>
+<button id="logoutBtn">Logout</button>
 
-  <div class="summary">
-    <div>TOTAL INCOME<br><span id="income">₹0</span></div>
-    <div>TOTAL EXPENSE<br><span id="expense">₹0</span></div>
-    <div>BALANCE<br><span id="balance">₹0</span></div>
-  </div>
+<h3>TOTAL INCOME</h3>
+<p id="incomeEl">₹0</p>
 
-  <h2>Add Transaction</h2>
-  <form id="transactionForm">
-    <select id="type" required>
-      <option value="income">Income</option>
-      <option value="expense">Expense</option>
-    </select>
+<h3>TOTAL EXPENSE</h3>
+<p id="expenseEl">₹0</p>
 
-    <input type="number" id="amount" placeholder="Amount" required>
+<h3>BALANCE</h3>
+<p id="balanceEl">₹0</p>
 
-    <input type="text" id="category" placeholder="Category" required>
+<h2>Add Transaction</h2>
+<form id="transactionForm">
+  <select id="type">
+    <option value="income">Income</option>
+    <option value="expense">Expense</option>
+  </select>
 
-    <input type="text" id="description" placeholder="Description">
+  <input id="amount" type="number" placeholder="Amount" required>
+  <input id="category" placeholder="Category" required>
+  <input id="description" placeholder="Description">
+  <button>Add Transaction</button>
+</form>
 
-    <button type="submit">Add Transaction</button>
-  </form>
+<h2>Recent Transactions</h2>
+<ul id="transactionList"></ul>
 
-  <h2>Recent Transactions</h2>
-  <ul id="transactionList"></ul>
-</div>
-
+<script>
+  const incomeEl = document.getElementById("incomeEl");
+  const expenseEl = document.getElementById("expenseEl");
+  const balanceEl = document.getElementById("balanceEl");
+</script>
 <script src="/app.js"></script>
+
 </body>
 </html>
