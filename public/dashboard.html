@@ -2,32 +2,42 @@
 <html>
 <head>
   <title>Expense Tracker</title>
+  <style>
+    body { font-family: Arial; background:#6b6bd6; padding:20px }
+    input, select, button { padding:8px; margin:5px }
+    .box { background:#fff; padding:20px; margin:10px 0 }
+  </style>
 </head>
-<body style="background:#6c6fdc;color:white;font-family:Arial;padding:20px">
+<body>
 
 <h1>Expense Tracker</h1>
 <button onclick="logout()">Logout</button>
 
-<h2>Summary</h2>
-<p>Income: ₹<span id="income">0</span></p>
-<p>Expense: ₹<span id="expense">0</span></p>
-<p>Balance: ₹<span id="balance">0</span></p>
+<div class="box">
+  <h3>Total Income: ₹<span id="income">0</span></h3>
+  <h3>Total Expense: ₹<span id="expense">0</span></h3>
+  <h3>Balance: ₹<span id="balance">0</span></h3>
+</div>
 
-<h2>Add Transaction</h2>
-<select id="type">
-  <option value="income">Income</option>
-  <option value="expense">Expense</option>
-</select>
-<input id="amount" placeholder="Amount" type="number">
-<input id="category" placeholder="Category">
-<input id="description" placeholder="Description">
-<button onclick="addTx()">Add</button>
+<div class="box">
+  <h3>Add Transaction</h3>
+  <select id="type">
+    <option value="income">Income</option>
+    <option value="expense">Expense</option>
+  </select>
+  <input id="amount" type="number" placeholder="Amount">
+  <input id="category" placeholder="Category">
+  <input id="description" placeholder="Description">
+  <button onclick="addTransaction()">Add</button>
+</div>
 
-<h2>Transactions</h2>
-<ul id="list"></ul>
+<div class="box">
+  <h3>Recent Transactions</h3>
+  <ul id="list"></ul>
+</div>
 
 <script>
-async function load() {
+async function loadData() {
   const res = await fetch("/transactions");
   const data = await res.json();
 
@@ -47,8 +57,8 @@ async function load() {
   document.getElementById("balance").innerText = income - expense;
 }
 
-async function addTx() {
-  await fetch("/transactions", {
+async function addTransaction() {
+  await fetch("/transaction", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -58,7 +68,7 @@ async function addTx() {
       description: description.value
     })
   });
-  load();
+  loadData();
 }
 
 async function logout() {
@@ -66,7 +76,7 @@ async function logout() {
   location.href = "/";
 }
 
-load();
+loadData();
 </script>
 
 </body>
