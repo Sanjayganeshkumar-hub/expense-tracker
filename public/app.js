@@ -1,21 +1,103 @@
 const userId = localStorage.getItem("userId");
 
-if (!userId) {
-  alert("Please login first");
-  window.location.href = "/";
+/* ================= LOGIN ================= */
+const loginForm = document.getElementById("loginForm");
+if (loginForm) {
+  loginForm.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+
+    const res = await fetch("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      localStorage.setItem("userId", data.userId);
+      window.location.href = "/dashboard";
+    } else {
+      alert(data.message);
+    }
+  });
 }
 
-const list = document.getElementById("list");
-const summary = document.getElementById("summary");
+/* ================= SIGNUP ================= */
+const signupForm = document.getElementById("signupForm");
+if (signupForm) {
+  signupForm.addEventListener("submit", async e => {
+    e.preventDefault();
 
-async function load() {
+    const name = document.getElementById("signupName").value;
+    const email = document.getElementById("signupEmail").value;
+    const password = document.getElementById("signupPassword").value;
+
+    const res = await fetch("/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert("Account created. Please login.");
+      window.location.href = "/";
+    } else {
+      alert(data.message);
+    }
+  });
+}
+
+/* ================= DASHBOARD ================= */
+if (window.location.pathname === "/dashboard") {
+  if (!userId) {
+    alert("Please login again");
+    window.location.href = "/";
+  }
+
+  loadTransactions();
+
+  document.getElementById("addForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const type = document.getElementById("type").value;
+    const amount = document.getElementById("amount").value;
+    const category = document.getElementById("category").value;
+    const description = document.getElementById("description").value;
+
+    await fetch("/transaction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        type,
+        amount,
+        category,
+        description
+      })
+    });
+
+    e.target.reset();
+    loadTransactions();
+  });
+}
+
+async function loadTransactions() {
   const res = await fetch(`/transactions/${userId}`);
-  const txns = await res.json();
+  const data = await res.json();
 
-  let income = 0, expense = 0;
+  let income = 0,
+    expense = 0;
+
+  const list = document.getElementById("transactions");
   list.innerHTML = "";
 
-  txns.forEach(t => {
+  data.forEach(t => {
     if (t.type === "income") income += t.amount;
     else expense += t.amount;
 
@@ -24,31 +106,13 @@ async function load() {
     list.appendChild(li);
   });
 
-  summary.textContent = `Income: ₹${income} | Expense: ₹${expense} | Balance: ₹${income - expense}`;
+  document.getElementById("income").textContent = income;
+  document.getElementById("expense").textContent = expense;
+  document.getElementById("balance").textContent = income - expense;
 }
 
-load();
-
-document.getElementById("txnForm").onsubmit = async (e) => {
-  e.preventDefault();
-
-  await fetch("/transaction", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId,
-      type: type.value,
-      amount: Number(amount.value),
-      category: category.value,
-      description: description.value
-    })
-  });
-
-  e.target.reset();
-  load();
-};
-
-document.getElementById("logout").onclick = () => {
+/* ================= LOGOUT ================= */
+function logout() {
   localStorage.removeItem("userId");
   window.location.href = "/";
-};
+}

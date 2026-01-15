@@ -1,127 +1,34 @@
-* {
-  box-sizing: border-box;
-  font-family: "Segoe UI", sans-serif;
-}
-
 body {
-  margin: 0;
-  background: #fff5f3;
-  color: #2e2e2e;
-}
-
-/* ===== HEADER ===== */
-header {
-  background: linear-gradient(135deg, #f04e45, #ff8a65);
-  color: white;
-  padding: 22px;
+  font-family: Arial;
+  background: #fff4f0;
   text-align: center;
-  font-size: 28px;
-  font-weight: bold;
 }
 
-/* ===== CONTAINER ===== */
-.container {
-  max-width: 420px;
-  margin: 60px auto;
+h1 {
+  background: linear-gradient(90deg, #ff5f4e, #ff8364);
+  color: white;
+  padding: 20px;
+}
+
+form {
   background: white;
-  padding: 30px;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+  padding: 20px;
+  margin: 20px auto;
+  width: 300px;
+  border-radius: 10px;
 }
 
-/* ===== INPUTS ===== */
-input, select {
-  width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  font-size: 15px;
-}
-
-input:focus, select:focus {
-  outline: none;
-  border-color: #f04e45;
-}
-
-/* ===== BUTTON ===== */
+input,
+select,
 button {
   width: 100%;
-  padding: 12px;
-  margin-top: 15px;
-  border: none;
-  border-radius: 8px;
-  background: #f04e45;
+  padding: 10px;
+  margin: 8px 0;
+}
+
+button {
+  background: #ff5f4e;
   color: white;
-  font-size: 16px;
-  font-weight: bold;
+  border: none;
   cursor: pointer;
-}
-
-button:hover {
-  background: #e1433a;
-}
-
-/* ===== LINKS ===== */
-a {
-  color: #f04e45;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.center {
-  text-align: center;
-  margin-top: 15px;
-}
-
-/* ===== DASHBOARD ===== */
-.dashboard-container {
-  max-width: 900px;
-  margin: auto;
-  padding: 20px;
-}
-
-.card {
-  background: white;
-  padding: 20px;
-  border-radius: 14px;
-  margin-bottom: 20px;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.08);
-}
-
-.summary {
-  display: flex;
-  justify-content: space-between;
-  text-align: center;
-}
-
-.summary div {
-  width: 30%;
-}
-
-.income { color: #2ecc71; font-size: 22px; }
-.expense { color: #e74c3c; font-size: 22px; }
-.balance { color: #3498db; font-size: 22px; }
-
-/* ===== TRANSACTIONS ===== */
-ul {
-  list-style: none;
-  padding: 0;
-}
-
-li {
-  background: #fff;
-  margin-bottom: 8px;
-  padding: 12px;
-  border-left: 6px solid #f04e45;
-  border-radius: 6px;
-}
-
-/* ===== LOGOUT ===== */
-#logoutBtn {
-  background: white;
-  color: #f04e45;
-  border: 2px solid #f04e45;
-  width: auto;
-  padding: 8px 16px;
 }
