@@ -21,16 +21,20 @@ mongoose
 /* -------------------- SESSION -------------------- */
 app.use(
   session({
-    secret: "expense-tracker-secret",
+    name: "expense-tracker-session",
+    secret: process.env.SESSION_SECRET || "expense_secret",
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 // 1 day
+    },
+    store: MongoStore({
       mongoUrl: process.env.MONGO_URI,
       collectionName: "sessions"
-    }),
-    cookie: { maxAge: 1000 * 60 * 60 }
+    })
   })
 );
+
 
 /* -------------------- MODELS -------------------- */
 const User = mongoose.model(
