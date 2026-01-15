@@ -1,24 +1,30 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
 const session = require("express-session");
-const MongoStore = require("connect-mongo");
+const MongoStore = require("connect-mongo")(session);
+const bcrypt = require("bcryptjs");
 const path = require("path");
 
 const app = express();
 
-/* -------------------- CONFIG -------------------- */
+/* ===============================
+   MIDDLEWARE
+================================ */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-/* -------------------- DB -------------------- */
+/* ===============================
+   DATABASE
+================================ */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to MongoDB Atlas"))
-  .catch(err => console.error(err));
+  .catch((err) => console.error(err));
 
-/* -------------------- SESSION -------------------- */
+/* ===============================
+   SESSION CONFIG (FIXED)
+================================ */
 app.use(
   session({
     name: "expense-tracker-session",
@@ -28,107 +34,104 @@ app.use(
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 // 1 day
     },
-    store: MongoStore({
-      mongoUrl: process.env.MONGO_URI,
-      collectionName: "sessions"
+    store: new MongoStore({
+      mongooseConnection: mongoose.connection,
+      collection: "sessions"
     })
   })
 );
 
+/* ===============================
+   MODELS
+================================ */
+const UserSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String
+});
 
-/* -------------------- MODELS -------------------- */
-const User = mongoose.model(
-  "User",
-  new mongoose.Schema({
-    name: String,
-    email: { type: String, unique: true },
-    password: String
-  })
-);
+const TransactionSchema = new mongoose.Schema({
+  userId: mongoose.Schema.Types.ObjectId,
+  type: String,
+  amount: Number,
+  category: String,
+  description: String,
+  date: { type: Date, default: Date.now }
+});
 
-const Transaction = mongoose.model(
-  "Transaction",
-  new mongoose.Schema({
-    userId: mongoose.Schema.Types.ObjectId,
-    type: String,
-    amount: Number,
-    category: String,
-    description: String,
-    date: { type: Date, default: Date.now }
-  })
-);
+const User = mongoose.model("User", UserSchema);
+const Transaction = mongoose.model("Transaction", TransactionSchema);
 
-/* -------------------- ROUTES -------------------- */
+/* ===============================
+   ROUTES
+================================ */
+
+// HOME
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-/* SIGNUP */
+// SIGNUP
 app.post("/signup", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    const hash = await bcrypt.hash(password, 10);
-    await User.create({ name, email, password: hash });
+    const hashed = await bcrypt.hash(req.body.password, 10);
+    await User.create({
+      name: req.body.name,
+      email: req.body.email,
+      password: hashed
+    });
     res.json({ success: true });
-  } catch {
-    res.status(400).json({ success: false });
+  } catch (err) {
+    res.status(400).json({ error: "User already exists" });
   }
 });
 
-/* LOGIN */
+// LOGIN
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) return res.status(401).json({ success: false });
+  const user = await User.findOne({ email: req.body.email });
+  if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ success: false });
+  const ok = await bcrypt.compare(req.body.password, user.password);
+  if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
   req.session.userId = user._id;
   res.json({ success: true });
 });
 
-/* AUTH CHECK */
-app.get("/auth", (req, res) => {
-  if (!req.session.userId) return res.json({ loggedIn: false });
-  res.json({ loggedIn: true });
+// LOGOUT
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/");
+  });
 });
 
-/* DASHBOARD */
-app.get("/dashboard", (req, res) => {
-  if (!req.session.userId) return res.redirect("/");
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
-});
-
-/* ADD TRANSACTION */
+// ADD TRANSACTION
 app.post("/transaction", async (req, res) => {
-  if (!req.session.userId) return res.status(401).end();
+  if (!req.session.userId) return res.sendStatus(401);
 
-  const { type, amount, category, description } = req.body;
   await Transaction.create({
     userId: req.session.userId,
-    type,
-    amount,
-    category,
-    description
+    type: req.body.type,
+    amount: req.body.amount,
+    category: req.body.category,
+    description: req.body.description
   });
+
   res.json({ success: true });
 });
 
-/* GET TRANSACTIONS */
+// GET TRANSACTIONS
 app.get("/transactions", async (req, res) => {
-  if (!req.session.userId) return res.status(401).end();
+  if (!req.session.userId) return res.sendStatus(401);
+
   const data = await Transaction.find({ userId: req.session.userId });
   res.json(data);
 });
 
-/* LOGOUT */
-app.post("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+/* ===============================
+   SERVER
+================================ */
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
 });
-
-/* -------------------- START -------------------- */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port", PORT));
