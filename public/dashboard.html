@@ -3,80 +3,70 @@
 <head>
   <title>Expense Tracker</title>
 </head>
-<body>
+<body style="background:#6c6fdc;color:white;font-family:Arial;padding:20px">
 
-<h2>Expense Tracker</h2>
+<h1>Expense Tracker</h1>
 <button onclick="logout()">Logout</button>
 
-<h3>Total Income: ₹<span id="income">0</span></h3>
-<h3>Total Expense: ₹<span id="expense">0</span></h3>
-<h3>Balance: ₹<span id="balance">0</span></h3>
+<h2>Summary</h2>
+<p>Income: ₹<span id="income">0</span></p>
+<p>Expense: ₹<span id="expense">0</span></p>
+<p>Balance: ₹<span id="balance">0</span></p>
 
-<hr>
-
-<h3>Add Transaction</h3>
+<h2>Add Transaction</h2>
 <select id="type">
   <option value="income">Income</option>
   <option value="expense">Expense</option>
 </select>
-<input id="amount" type="number" placeholder="Amount">
+<input id="amount" placeholder="Amount" type="number">
 <input id="category" placeholder="Category">
 <input id="description" placeholder="Description">
-<button onclick="addTransaction()">Add</button>
+<button onclick="addTx()">Add</button>
 
-<hr>
-
-<h3>Recent Transactions</h3>
+<h2>Transactions</h2>
 <ul id="list"></ul>
 
 <script>
-async function loadTransactions() {
+async function load() {
   const res = await fetch("/transactions");
-  if (!res.ok) return;
-
   const data = await res.json();
 
   let income = 0, expense = 0;
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+  document.getElementById("list").innerHTML = "";
 
   data.forEach(t => {
     if (t.type === "income") income += t.amount;
     else expense += t.amount;
 
-    const li = document.createElement("li");
-    li.textContent = `${t.type.toUpperCase()} - ₹${t.amount} (${t.category})`;
-    list.appendChild(li);
+    document.getElementById("list").innerHTML +=
+      `<li>${t.type} - ₹${t.amount} (${t.category})</li>`;
   });
 
-  document.getElementById("income").textContent = income;
-  document.getElementById("expense").textContent = expense;
-  document.getElementById("balance").textContent = income - expense;
+  document.getElementById("income").innerText = income;
+  document.getElementById("expense").innerText = expense;
+  document.getElementById("balance").innerText = income - expense;
 }
 
-async function addTransaction() {
-  const body = {
-    type: type.value,
-    amount: Number(amount.value),
-    category: category.value,
-    description: description.value
-  };
-
-  await fetch("/transaction", {
+async function addTx() {
+  await fetch("/transactions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      type: type.value,
+      amount: Number(amount.value),
+      category: category.value,
+      description: description.value
+    })
   });
-
-  amount.value = category.value = description.value = "";
-  loadTransactions();
+  load();
 }
 
-function logout() {
-  window.location.href = "/logout";
+async function logout() {
+  await fetch("/logout", { method: "POST" });
+  location.href = "/";
 }
 
-loadTransactions();
+load();
 </script>
 
 </body>
