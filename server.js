@@ -1,166 +1,114 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
-const path = require('path');
+const express = require("express");
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const path = require("path");
 
 const app = express();
 
-// ---------- CONFIG ----------
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'expense-secret';
-
-// ---------- MIDDLEWARE (VERY IMPORTANT) ----------
-app.use(cors());
+/* =====================
+   MIDDLEWARE
+===================== */
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // 🔥 REQUIRED
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public"));
 
-// ---------- DEFAULT ROUTE ----------
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
+/* =====================
+   MONGODB CONNECTION
+===================== */
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
+  .then(() => console.log("Connected to MongoDB Atlas"))
+  .catch(err => console.error("MongoDB error:", err));
 
-// ---------- DB CONNECTION ----------
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB Atlas'))
-  .catch(err => console.error('MongoDB error:', err));
-
-// ---------- MODELS ----------
-const userSchema = new mongoose.Schema({
+/* =====================
+   USER SCHEMA
+===================== */
+const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }
 });
 
-const transactionSchema = new mongoose.Schema({
-  userId: mongoose.Schema.Types.ObjectId,
-  type: String,
-  amount: Number,
-  category: String,
-  description: String,
-  date: { type: Date, default: Date.now }
+const User = mongoose.model("User", UserSchema);
+
+/* =====================
+   ROUTES
+===================== */
+
+// Default route
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "signup.html"));
 });
 
-const User = mongoose.model('User', userSchema);
-const Transaction = mongoose.model('Transaction', transactionSchema);
-
-// ---------- AUTH MIDDLEWARE ----------
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).json({ message: 'Token missing' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    res.status(403).json({ message: 'Invalid token' });
-  }
-}
-
-// ---------- REGISTER ----------
-app.post('/api/register', async (req, res) => {
+// SIGNUP
+app.post("/api/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: 'All fields required' });
+      return res.status(400).json({ message: "All fields required" });
     }
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res.status(409).json({ message: 'Email already exists' });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    await User.create({
+    const newUser = new User({
       name,
       email,
-      password: hashed
+      password: hashedPassword
     });
 
-    res.status(201).json({ message: 'User registered successfully' });
+    await newUser.save();
+
+    res.status(201).json({ message: "User created successfully" });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Registration failed' });
+    console.error("Signup error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// ---------- LOGIN ----------
-app.post('/api/login', async (req, res) => {
+// LOGIN
+app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET);
+    const token = jwt.sign(
+      { id: user._id },
+      "secretkey",
+      { expiresIn: "1h" }
+    );
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email
-      }
-    });
+    res.json({ message: "Login successful", token });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Login failed' });
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// ---------- DASHBOARD ----------
-app.get('/api/dashboard', authenticateToken, async (req, res) => {
-  const tx = await Transaction.find({ userId: req.userId });
-
-  let income = 0, expense = 0;
-  tx.forEach(t => {
-    if (t.type === 'income') income += t.amount;
-    else expense += t.amount;
-  });
-
-  res.json({
-    totalIncome: income,
-    totalExpense: expense,
-    balance: income - expense
-  });
-});
-
-// ---------- TRANSACTIONS ----------
-app.get('/api/transactions', authenticateToken, async (req, res) => {
-  const tx = await Transaction.find({ userId: req.userId });
-  res.json(tx);
-});
-
-app.post('/api/transactions', authenticateToken, async (req, res) => {
-  const t = await Transaction.create({
-    ...req.body,
-    userId: req.userId
-  });
-  res.json(t);
-});
-
-app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
-  await Transaction.deleteOne({ _id: req.params.id, userId: req.userId });
-  res.json({ message: 'Deleted' });
-});
-
-// ---------- START ----------
+/* =====================
+   SERVER
+===================== */
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
