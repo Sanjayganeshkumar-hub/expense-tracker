@@ -9,10 +9,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 /* ================= DB ================= */
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log("Connected to MongoDB Atlas"))
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("Connected to MongoDB Atlas"))
   .catch(err => console.error(err));
 
 /* ================= MODELS ================= */
@@ -33,24 +31,20 @@ const TransactionSchema = new mongoose.Schema({
 });
 const Transaction = mongoose.model("Transaction", TransactionSchema);
 
-/* ================= ROUTES ================= */
-
-// Home → Login
+/* ================= PAGES ================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public/login.html"));
 });
 
-// Signup page
 app.get("/signup", (req, res) => {
   res.sendFile(path.join(__dirname, "public/signup.html"));
 });
 
-// Dashboard
 app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public/dashboard.html"));
 });
 
-/* ---------- SIGN UP ---------- */
+/* ================= AUTH ================= */
 app.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -64,12 +58,11 @@ app.post("/signup", async (req, res) => {
     await User.create({ name, email, password: hashed });
 
     res.json({ success: true });
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: "Signup failed" });
   }
 });
 
-/* ---------- LOGIN ---------- */
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -79,17 +72,30 @@ app.post("/login", async (req, res) => {
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
+  // 🔥 SEND userId TO FRONTEND
   res.json({ success: true, userId: user._id });
 });
 
-/* ---------- TRANSACTIONS ---------- */
-app.post("/transaction", async (req, res) => {
-  await Transaction.create(req.body);
+/* ================= TRANSACTIONS ================= */
+
+// ADD TRANSACTION
+app.post("/transactions", async (req, res) => {
+  const { userId, type, amount, category, description } = req.body;
+
+  await Transaction.create({
+    userId,
+    type,
+    amount,
+    category,
+    description
+  });
+
   res.json({ success: true });
 });
 
+// GET USER TRANSACTIONS
 app.get("/transactions/:userId", async (req, res) => {
-  const txns = await Transaction.find({ userId: req.params.userId });
+  const txns = await Transaction.find({ userId: req.params.userId }).sort({ date: -1 });
   res.json(txns);
 });
 
