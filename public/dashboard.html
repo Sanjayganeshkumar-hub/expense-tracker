@@ -1,45 +1,83 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Expense Tracker</title>
 </head>
 <body>
 
-<h1>Expense Tracker</h1>
-<button id="logoutBtn">Logout</button>
+<h2>Expense Tracker</h2>
+<button onclick="logout()">Logout</button>
 
-<h3>TOTAL INCOME</h3>
-<p id="incomeEl">₹0</p>
+<h3>Total Income: ₹<span id="income">0</span></h3>
+<h3>Total Expense: ₹<span id="expense">0</span></h3>
+<h3>Balance: ₹<span id="balance">0</span></h3>
 
-<h3>TOTAL EXPENSE</h3>
-<p id="expenseEl">₹0</p>
+<hr>
 
-<h3>BALANCE</h3>
-<p id="balanceEl">₹0</p>
+<h3>Add Transaction</h3>
+<select id="type">
+  <option value="income">Income</option>
+  <option value="expense">Expense</option>
+</select>
+<input id="amount" type="number" placeholder="Amount">
+<input id="category" placeholder="Category">
+<input id="description" placeholder="Description">
+<button onclick="addTransaction()">Add</button>
 
-<h2>Add Transaction</h2>
-<form id="transactionForm">
-  <select id="type">
-    <option value="income">Income</option>
-    <option value="expense">Expense</option>
-  </select>
+<hr>
 
-  <input id="amount" type="number" placeholder="Amount" required>
-  <input id="category" placeholder="Category" required>
-  <input id="description" placeholder="Description">
-  <button>Add Transaction</button>
-</form>
-
-<h2>Recent Transactions</h2>
-<ul id="transactionList"></ul>
+<h3>Recent Transactions</h3>
+<ul id="list"></ul>
 
 <script>
-  const incomeEl = document.getElementById("incomeEl");
-  const expenseEl = document.getElementById("expenseEl");
-  const balanceEl = document.getElementById("balanceEl");
+async function loadTransactions() {
+  const res = await fetch("/transactions");
+  if (!res.ok) return;
+
+  const data = await res.json();
+
+  let income = 0, expense = 0;
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  data.forEach(t => {
+    if (t.type === "income") income += t.amount;
+    else expense += t.amount;
+
+    const li = document.createElement("li");
+    li.textContent = `${t.type.toUpperCase()} - ₹${t.amount} (${t.category})`;
+    list.appendChild(li);
+  });
+
+  document.getElementById("income").textContent = income;
+  document.getElementById("expense").textContent = expense;
+  document.getElementById("balance").textContent = income - expense;
+}
+
+async function addTransaction() {
+  const body = {
+    type: type.value,
+    amount: Number(amount.value),
+    category: category.value,
+    description: description.value
+  };
+
+  await fetch("/transaction", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  amount.value = category.value = description.value = "";
+  loadTransactions();
+}
+
+function logout() {
+  window.location.href = "/logout";
+}
+
+loadTransactions();
 </script>
-<script src="/app.js"></script>
 
 </body>
 </html>

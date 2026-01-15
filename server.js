@@ -1,138 +1,105 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const session = require("express-session");
 const path = require("path");
 
 const app = express();
 
-/* =======================
-   MIDDLEWARE
-======================= */
+/* ---------------- MIDDLEWARE ---------------- */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
 
-/* =======================
-   MONGODB CONNECTION
-======================= */
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+app.use(
+  session({
+    secret: "expense-tracker-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } // OK for Render
   })
-  .then(() => console.log("Connected to MongoDB Atlas"))
-  .catch(err => console.error("MongoDB error:", err));
+);
 
-/* =======================
-   MODELS
-======================= */
+app.use(express.static(path.join(__dirname, "public")));
+
+/* ---------------- DATABASE ---------------- */
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("Connected to MongoDB Atlas"))
+  .catch(err => console.error(err));
+
+/* ---------------- SCHEMAS ---------------- */
 const UserSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
   password: String
 });
-const User = mongoose.model("User", UserSchema);
 
 const TransactionSchema = new mongoose.Schema({
   userId: mongoose.Schema.Types.ObjectId,
-  type: String,
+  type: String, // income / expense
   amount: Number,
   category: String,
   description: String,
-  date: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now }
 });
+
+const User = mongoose.model("User", UserSchema);
 const Transaction = mongoose.model("Transaction", TransactionSchema);
 
-/* =======================
-   AUTH MIDDLEWARE
-======================= */
-function auth(req, res, next) {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "No token" });
-
-  try {
-    const decoded = jwt.verify(token, "secretkey");
-    req.userId = decoded.id;
-    next();
-  } catch {
-    res.status(401).json({ message: "Invalid token" });
-  }
-}
-
-/* =======================
-   ROUTES
-======================= */
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-
-/* ---------- SIGNUP ---------- */
-app.post("/api/signup", async (req, res) => {
+/* ---------------- AUTH ---------------- */
+app.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
-    if (!name || !email || !password)
-      return res.status(400).json({ message: "All fields required" });
-
-    if (await User.findOne({ email }))
-      return res.status(400).json({ message: "User already exists" });
-
     const hashed = await bcrypt.hash(password, 10);
-
-    await new User({ name, email, password: hashed }).save();
-    res.json({ message: "Signup successful" });
+    await User.create({ name, email, password: hashed });
+    res.json({ success: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(400).json({ success: false });
   }
 });
 
-/* ---------- LOGIN ---------- */
-app.post("/api/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) return res.json({ success: false });
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.json({ success: false });
 
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(400).json({ message: "Invalid credentials" });
-
-    const token = jwt.sign({ id: user._id }, "secretkey", { expiresIn: "1h" });
-    res.json({ token });
-  } catch {
-    res.status(500).json({ message: "Server error" });
-  }
+  req.session.userId = user._id; // 🔥 IMPORTANT
+  res.json({ success: true });
 });
 
-/* ---------- ADD TRANSACTION ---------- */
-app.post("/api/transactions", auth, async (req, res) => {
-  try {
-    const tx = new Transaction({
-      userId: req.userId,
-      type: req.body.type,
-      amount: Number(req.body.amount),
-      category: req.body.category,
-      description: req.body.description
-    });
-
-    await tx.save();
-    res.json({ message: "Transaction saved" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error saving transaction" });
-  }
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/login.html");
+  });
 });
 
-/* ---------- GET USER TRANSACTIONS ---------- */
-app.get("/api/transactions", auth, async (req, res) => {
-  const txs = await Transaction.find({ userId: req.userId }).sort({ date: -1 });
-  res.json(txs);
+/* ---------------- TRANSACTIONS ---------------- */
+app.post("/transaction", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({});
+
+  const { type, amount, category, description } = req.body;
+
+  await Transaction.create({
+    userId: req.session.userId, // 🔥 KEY FIX
+    type,
+    amount,
+    category,
+    description
+  });
+
+  res.json({ success: true });
 });
 
-/* =======================
-   SERVER
-======================= */
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+app.get("/transactions", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json([]);
+
+  const data = await Transaction.find({ userId: req.session.userId });
+  res.json(data);
+});
+
+/* ---------------- START ---------------- */
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on port", PORT));
