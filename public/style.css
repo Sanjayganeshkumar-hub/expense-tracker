@@ -1,34 +1,140 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Arial;
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
   background: #fff4f0;
-  text-align: center;
+  color: #2c3e50;
 }
 
-h1 {
+/* ===== HEADER ===== */
+header {
   background: linear-gradient(90deg, #ff5f4e, #ff8364);
+  padding: 20px;
   color: white;
-  padding: 20px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
 }
 
-form {
+/* ===== CARD ===== */
+.card {
   background: white;
-  padding: 20px;
-  margin: 20px auto;
-  width: 300px;
-  border-radius: 10px;
+  max-width: 900px;
+  margin: 25px auto;
+  padding: 25px;
+  border-radius: 14px;
+  box-shadow: 0 12px 25px rgba(0,0,0,0.08);
 }
 
-input,
-select,
+/* ===== AUTH FORMS ===== */
+.auth-card {
+  max-width: 380px;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 15px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #ff5f4e;
+}
+
+/* ===== BUTTON ===== */
 button {
   width: 100%;
-  padding: 10px;
-  margin: 8px 0;
-}
-
-button {
+  padding: 12px;
+  border-radius: 10px;
   background: #ff5f4e;
   color: white;
   border: none;
+  font-size: 16px;
   cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background: #e94b3c;
+}
+
+/* ===== STATS ===== */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  text-align: center;
+}
+
+.stat {
+  padding: 20px;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.stat h3 {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.income {
+  color: #2ecc71;
+}
+
+.expense {
+  color: #e74c3c;
+}
+
+.balance {
+  color: #3498db;
+}
+
+/* ===== TRANSACTIONS ===== */
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ===== LINKS ===== */
+a {
+  color: #ff5f4e;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ===== LOGOUT ===== */
+.logout {
+  max-width: 200px;
+  margin: 15px auto;
+  background: #ccc;
+  color: #333;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    margin: 15px;
+  }
 }
