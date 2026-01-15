@@ -1,93 +1,79 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* =========================
-     LOGOUT
-  ========================== */
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("token");
-      window.location.href = "/login.html";
-    });
-  }
+  /* =====================
+     SIGNUP
+  ====================== */
+  const signupForm = document.getElementById("signupForm");
 
-  /* =========================
-     ADD TRANSACTION
-  ========================== */
-  const transactionForm = document.getElementById("transactionForm");
+  if (signupForm) {
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault(); // 🔥 STOPS PAGE RELOAD
 
-  if (transactionForm) {
-    loadTransactions();
-
-    transactionForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const type = document.getElementById("type").value;
-      const amount = document.getElementById("amount").value;
-      const category = document.getElementById("category").value;
-      const description = document.getElementById("description").value;
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
       try {
-        const res = await fetch("/api/transactions", {
+        const res = await fetch("/api/signup", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`
-          },
-          body: JSON.stringify({ type, amount, category, description })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
         });
 
-        if (res.ok) {
-          transactionForm.reset();
-          loadTransactions();
-        } else {
-          alert("Failed to add transaction");
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(data.message || "Signup failed");
+          return;
         }
 
+        alert("Signup successful!");
+        window.location.href = "/login.html";
+
       } catch (err) {
-        console.error(err);
         alert("Server error");
+        console.error(err);
       }
     });
   }
 
-  /* =========================
-     LOAD TRANSACTIONS
-  ========================== */
-  async function loadTransactions() {
-    try {
-      const res = await fetch("/api/transactions", {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+  /* =====================
+     LOGIN
+  ====================== */
+  const loginForm = document.getElementById("loginForm");
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault(); // 🔥 STOPS PAGE RELOAD
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(data.message || "Login failed");
+          return;
         }
-      });
 
-      const data = await res.json();
+        // ✅ SAVE TOKEN
+        localStorage.setItem("token", data.token);
 
-      const list = document.getElementById("transactionList");
-      const incomeEl = document.getElementById("income");
-      const expenseEl = document.getElementById("expense");
-      const balanceEl = document.getElementById("balance");
+        alert("Login successful!");
+        window.location.href = "/dashboard.html";
 
-      list.innerHTML = "";
-      let income = 0, expense = 0;
-
-      data.forEach(tx => {
-        const li = document.createElement("li");
-        li.textContent = `${tx.category} - ₹${tx.amount}`;
-        list.appendChild(li);
-
-        if (tx.type === "income") income += tx.amount;
-        else expense += tx.amount;
-      });
-
-      incomeEl.textContent = `₹${income}`;
-      expenseEl.textContent = `₹${expense}`;
-      balanceEl.textContent = `₹${income - expense}`;
-
-    } catch (err) {
-      console.error(err);
-    }
+      } catch (err) {
+        alert("Server error");
+        console.error(err);
+      }
+    });
   }
 
 });
