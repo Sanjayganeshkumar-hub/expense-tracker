@@ -71,9 +71,13 @@ app.post('/api/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ message: 'Email already registered' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -85,11 +89,21 @@ app.post('/api/register', async (req, res) => {
     });
 
     await user.save();
-    res.json({ message: 'User registered successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Registration failed' });
+
+    res.status(201).json({ message: 'User registered successfully' });
+
+  } catch (error) {
+    console.error('Register Error:', error);
+
+    // Handle MongoDB duplicate key error safely
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'Email already registered' });
+    }
+
+    res.status(500).json({ message: 'Server error during registration' });
   }
 });
+
 
 // Login
 app.post('/api/login', async (req, res) => {
