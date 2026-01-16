@@ -1,76 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard | Expense Tracker</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Expense Tracker</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #fff4ee;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      margin: 20px;
+      border-radius: 10px;
+    }
+    button {
+      background: #ff5b4d;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .delete-btn {
+      background: #333;
+      margin-left: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<header>Expense Tracker</header>
+<h1>Expense Tracker</h1>
 
-<button class="logout" onclick="logout()">Logout</button>
-
-<div class="card">
-  <div class="stats">
-    <div class="stat income">
-      <h3>Total Income</h3>
-      ₹<span id="income">0</span>
-    </div>
-    <div class="stat expense">
-      <h3>Total Expense</h3>
-      ₹<span id="expense">0</span>
-    </div>
-    <div class="stat balance">
-      <h3>Balance</h3>
-      ₹<span id="balance">0</span>
-    </div>
-  </div>
+<div class="box">
+  <h3>Total Income: ₹<span id="income">0</span></h3>
+  <h3>Total Expense: ₹<span id="expense">0</span></h3>
+  <h3>Balance: ₹<span id="balance">0</span></h3>
 </div>
 
-<div class="card">
+<div class="box">
   <h3>Add Transaction</h3>
-
   <select id="type">
     <option value="income">Income</option>
     <option value="expense">Expense</option>
   </select>
-
-  <input type="number" id="amount" placeholder="Amount">
-  <input type="text" id="category" placeholder="Category">
-  <input type="text" id="description" placeholder="Description">
-
+  <input id="amount" placeholder="Amount">
+  <input id="category" placeholder="Category">
+  <input id="description" placeholder="Description">
   <button onclick="addTransaction()">Add Transaction</button>
 </div>
 
-<div class="card">
+<div class="box">
   <h3>Recent Transactions</h3>
-  <ul id="transactions"></ul>
+  <ul id="list"></ul>
 </div>
 
 <script>
 const userId = localStorage.getItem("userId");
-if (!userId) {
-  alert("Session expired. Please login again.");
-  window.location.href = "/";
-}
+if (!userId) location.href = "/";
 
 async function loadTransactions() {
   const res = await fetch(`/transactions/${userId}`);
   const data = await res.json();
 
   let income = 0, expense = 0;
-  const list = document.getElementById("transactions");
+  const list = document.getElementById("list");
   list.innerHTML = "";
 
   data.forEach(t => {
-    const li = document.createElement("li");
-    li.innerHTML = `${t.type} - ₹${t.amount} (${t.category})`;
-
-    list.appendChild(li);
-
     if (t.type === "income") income += t.amount;
     else expense += t.amount;
+
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${t.type} - ₹${t.amount} (${t.category})
+      <button class="delete-btn" onclick="deleteTxn('${t._id}')">Delete</button>
+    `;
+    list.appendChild(li);
   });
 
   document.getElementById("income").innerText = income;
@@ -79,23 +84,23 @@ async function loadTransactions() {
 }
 
 async function addTransaction() {
-  const type = document.getElementById("type").value;
-  const amount = Number(document.getElementById("amount").value);
-  const category = document.getElementById("category").value;
-  const description = document.getElementById("description").value;
-
   await fetch("/transaction", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, type, amount, category, description })
+    body: JSON.stringify({
+      userId,
+      type: type.value,
+      amount: Number(amount.value),
+      category: category.value,
+      description: description.value
+    })
   });
-
   loadTransactions();
 }
 
-function logout() {
-  localStorage.removeItem("userId");
-  window.location.href = "/";
+async function deleteTxn(id) {
+  await fetch(`/transaction/${id}`, { method: "DELETE" });
+  loadTransactions();
 }
 
 loadTransactions();
