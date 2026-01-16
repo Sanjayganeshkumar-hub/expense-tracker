@@ -1,57 +1,212 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Expense Tracker</title>
-  <style>
-    body {
-      font-family: Arial;
-      background: #fff4ee;
-    }
-    .box {
-      background: white;
-      padding: 20px;
-      margin: 20px;
-      border-radius: 10px;
-    }
-    button {
-      background: #ff5b4d;
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .delete-btn {
-      background: #333;
-      margin-left: 10px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Expense Tracker</title>
+
+<style>
+:root {
+  --primary: #ff5b4d;
+  --bg: #fff3ec;
+  --card: #ffffff;
+  --text: #222;
+  --muted: #666;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  background: linear-gradient(135deg, #ff5b4d, #ff7a5c);
+  color: white;
+  padding: 18px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.container {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 0 15px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 22px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+}
+
+/* ===== SUMMARY ===== */
+.summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.summary div {
+  flex: 1;
+  background: #fff7f2;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.summary h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.summary span {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+/* ===== FORM ===== */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.form-grid input,
+.form-grid select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.form-grid input:focus,
+.form-grid select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.form-grid .full {
+  grid-column: span 2;
+}
+
+button {
+  background: var(--primary);
+  border: none;
+  color: white;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* ===== TRANSACTIONS ===== */
+.txn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.txn:last-child {
+  border-bottom: none;
+}
+
+.txn-left {
+  font-size: 15px;
+}
+
+.txn-left span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.delete {
+  background: #333;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 600px) {
+  .summary {
+    flex-direction: column;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid .full {
+    grid-column: span 1;
+  }
+}
+</style>
 </head>
+
 <body>
 
-<h1>Expense Tracker</h1>
+<header>Expense Tracker</header>
 
-<div class="box">
-  <h3>Total Income: ₹<span id="income">0</span></h3>
-  <h3>Total Expense: ₹<span id="expense">0</span></h3>
-  <h3>Balance: ₹<span id="balance">0</span></h3>
-</div>
+<div class="container">
 
-<div class="box">
-  <h3>Add Transaction</h3>
-  <select id="type">
-    <option value="income">Income</option>
-    <option value="expense">Expense</option>
-  </select>
-  <input id="amount" placeholder="Amount">
-  <input id="category" placeholder="Category">
-  <input id="description" placeholder="Description">
-  <button onclick="addTransaction()">Add Transaction</button>
-</div>
+  <!-- SUMMARY -->
+  <div class="card summary">
+    <div>
+      <h3>Total Income</h3>
+      <span>₹<span id="income">0</span></span>
+    </div>
+    <div>
+      <h3>Total Expense</h3>
+      <span>₹<span id="expense">0</span></span>
+    </div>
+    <div>
+      <h3>Balance</h3>
+      <span>₹<span id="balance">0</span></span>
+    </div>
+  </div>
 
-<div class="box">
-  <h3>Recent Transactions</h3>
-  <ul id="list"></ul>
+  <!-- ADD TRANSACTION -->
+  <div class="card">
+    <h3>Add Transaction</h3>
+    <div class="form-grid">
+      <select id="type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+      <input id="amount" type="number" placeholder="Amount">
+
+      <input id="category" placeholder="Category">
+      <input id="description" placeholder="Description">
+
+      <div class="full">
+        <button onclick="addTransaction()">Add Transaction</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECENT -->
+  <div class="card">
+    <h3>Recent Transactions</h3>
+    <div id="list"></div>
+  </div>
+
 </div>
 
 <script>
@@ -70,12 +225,16 @@ async function loadTransactions() {
     if (t.type === "income") income += t.amount;
     else expense += t.amount;
 
-    const li = document.createElement("li");
-    li.innerHTML = `
-      ${t.type} - ₹${t.amount} (${t.category})
-      <button class="delete-btn" onclick="deleteTxn('${t._id}')">Delete</button>
+    const row = document.createElement("div");
+    row.className = "txn";
+    row.innerHTML = `
+      <div class="txn-left">
+        <b>${t.type}</b> - ₹${t.amount}
+        <br><span>${t.category}</span>
+      </div>
+      <button class="delete" onclick="deleteTxn('${t._id}')">Delete</button>
     `;
-    list.appendChild(li);
+    list.appendChild(row);
   });
 
   document.getElementById("income").innerText = income;
